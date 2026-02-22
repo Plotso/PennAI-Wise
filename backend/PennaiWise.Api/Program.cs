@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PennaiWise.Api.Data;
+using PennaiWise.Api.Endpoints;
 using PennaiWise.Api.Interfaces;
 using PennaiWise.Api.Repositories.Sqlite;
+using PennaiWise.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,6 +57,9 @@ builder.Services.AddScoped<ICategoryRepository, SqliteCategoryRepository>();
 builder.Services.AddScoped<IExpenseRepository, SqliteExpenseRepository>();
 builder.Services.AddScoped<IDashboardRepository, SqliteDashboardRepository>();
 
+// ── Services ──────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<TokenService>();
+
 // ────────────────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
@@ -79,5 +84,7 @@ app.UseAuthorization();
 app.MapGet("/", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
    .WithName("HealthCheck")
    .WithSummary("Health check");
+
+app.MapAuthEndpoints();
 
 app.Run();
