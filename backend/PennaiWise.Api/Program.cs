@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PennaiWise.Api.Data;
+using PennaiWise.Api.Interfaces;
+using PennaiWise.Api.Repositories.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,8 +48,22 @@ builder.Services.AddCors(options =>
 // ── OpenAPI / Swagger ────────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
 
+// ── Repositories ─────────────────────────────────────────────────────────────
+builder.Services.AddScoped<IUnitOfWork, SqliteUnitOfWork>();
+builder.Services.AddScoped<IUserRepository, SqliteUserRepository>();
+builder.Services.AddScoped<ICategoryRepository, SqliteCategoryRepository>();
+builder.Services.AddScoped<IExpenseRepository, SqliteExpenseRepository>();
+builder.Services.AddScoped<IDashboardRepository, SqliteDashboardRepository>();
+
 // ────────────────────────────────────────────────────────────────────────────
 var app = builder.Build();
+
+// ── Seed Default Data ────────────────────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await SeedData.SeedAsync(db);
+}
 
 if (app.Environment.IsDevelopment())
 {
