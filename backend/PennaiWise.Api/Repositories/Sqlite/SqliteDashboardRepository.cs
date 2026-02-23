@@ -46,12 +46,17 @@ public class SqliteDashboardRepository(AppDbContext context) : IDashboardReposit
                 totalSpent == 0 ? 0d : Math.Round((double)(g.Total / totalSpent) * 100, 2)))
             .ToList();
 
-        // Daily spending totals
-        var dailySpending = await baseQuery
+        // Daily spending totals — group on the client side so that Date.Date
+        // projection works with every EF Core provider (InMemory, SQLite, etc.).
+        var rawForDaily = await baseQuery
+            .Select(e => new { e.Date, e.Amount })
+            .ToListAsync(ct);
+
+        var dailySpending = rawForDaily
             .GroupBy(e => e.Date.Date)
             .Select(g => new DailySpendingDto(g.Key, g.Sum(e => e.Amount)))
             .OrderBy(d => d.Date)
-            .ToListAsync(ct);
+            .ToList();
 
         return new DashboardDto(
             totalSpent,

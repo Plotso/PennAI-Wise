@@ -64,8 +64,11 @@ builder.Services.AddScoped<TokenService>();
 var app = builder.Build();
 
 // ── Seed Default Data ────────────────────────────────────────────────────────
-using (var scope = app.Services.CreateScope())
+// Skip in the "Testing" environment: the test host owns schema creation and
+// seeding via EnsureCreated() before the first request is served.
+if (!app.Environment.IsEnvironment("Testing"))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await SeedData.SeedAsync(db);
 }
@@ -91,3 +94,7 @@ app.MapExpenseEndpoints();
 app.MapDashboardEndpoints();
 
 app.Run();
+
+// Expose the implicit Program class to the test project so that
+// WebApplicationFactory<Program> can reference it.
+public partial class Program { }
