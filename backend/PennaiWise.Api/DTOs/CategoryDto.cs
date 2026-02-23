@@ -4,5 +4,5 @@ public record CategoryDto(
     int Id,
     string Name,
     string? Color,
-    int? UserId   // null = system/default category
+    bool IsDefault   // true when UserId is null (system/default category)
 );

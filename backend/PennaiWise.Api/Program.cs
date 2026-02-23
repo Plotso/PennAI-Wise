@@ -86,5 +86,8 @@ app.MapGet("/", () => Results.Ok(new { status = "healthy", timestamp = DateTime.
    .WithSummary("Health check");
 
 app.MapAuthEndpoints();
+app.MapCategoryEndpoints();
+app.MapExpenseEndpoints();
+app.MapDashboardEndpoints();
 
 app.Run();

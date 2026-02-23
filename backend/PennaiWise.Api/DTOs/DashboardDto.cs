@@ -1,16 +1,22 @@
 namespace PennaiWise.Api.DTOs;
 
 public record DashboardDto(
-    int Month,
-    int Year,
     decimal TotalSpent,
-    List<CategorySpendingDto> SpendingByCategory
+    int TransactionCount,
+    ExpenseDto? HighestExpense,
+    string? TopCategory,
+    List<CategorySpendingDto> CategoryBreakdown,
+    List<DailySpendingDto> DailySpending
 );
 
 public record CategorySpendingDto(
-    int CategoryId,
     string CategoryName,
-    string? CategoryColor,
-    decimal TotalAmount,
-    int ExpenseCount
+    string? Color,
+    decimal Total,
+    double Percentage
+);
+
+public record DailySpendingDto(
+    DateTime Date,
+    decimal Total
 );

@@ -12,7 +12,7 @@ public class SqliteCategoryRepository(AppDbContext context) : ICategoryRepositor
         context.Categories
             .AsNoTracking()
             .Where(c => c.UserId == userId || c.UserId == null)
-            .Select(c => new CategoryDto(c.Id, c.Name, c.Color, c.UserId))
+            .Select(c => new CategoryDto(c.Id, c.Name, c.Color, c.UserId == null))
             .ToListAsync(ct);
 
     public Task<Category?> GetByIdAsync(int id, CancellationToken ct = default) =>
