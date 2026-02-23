@@ -41,7 +41,7 @@ public class AuthEndpointsTests
 
         var response = await _client.PostAsJsonAsync("/api/auth/register", dto);
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var body = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
         body.Should().NotBeNull();

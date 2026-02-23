@@ -1,14 +1,30 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using PennaiWise.Api.Data;
 using PennaiWise.Api.Endpoints;
 using PennaiWise.Api.Interfaces;
+using PennaiWise.Api.Middleware;
 using PennaiWise.Api.Repositories.Sqlite;
 using PennaiWise.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Global Exception Handling ────────────────────────────────────────────────
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+// ── HTTP Request Logging ─────────────────────────────────────────────────────
+builder.Services.AddHttpLogging(logging =>
+{
+    logging.LoggingFields = HttpLoggingFields.RequestMethod
+                          | HttpLoggingFields.RequestPath
+                          | HttpLoggingFields.ResponseStatusCode
+                          | HttpLoggingFields.Duration;
+    logging.CombineLogs = true;
+});
 
 // ── Database ────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -16,8 +32,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // ── JWT Authentication ───────────────────────────────────────────────────────
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var secret     = jwtSection["Secret"]  ?? throw new InvalidOperationException("JWT Secret is not configured.");
-var issuer     = jwtSection["Issuer"]  ?? throw new InvalidOperationException("JWT Issuer is not configured.");
+var secret     = jwtSection["Secret"]   ?? throw new InvalidOperationException("JWT Secret is not configured.");
+var issuer     = jwtSection["Issuer"]   ?? throw new InvalidOperationException("JWT Issuer is not configured.");
 var audience   = jwtSection["Audience"] ?? throw new InvalidOperationException("JWT Audience is not configured.");
 
 builder.Services
@@ -39,13 +55,35 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-const string CorsPolicy = "ViteDev";
+// Dev policy: allow the Vite dev server on localhost.
+// Production policy: origins are driven by Cors:AllowedOrigins in config.
+const string DevCorsPolicy  = "ViteDev";
+const string ProdCorsPolicy = "ProductionCors";
+
 builder.Services.AddCors(options =>
-    options.AddPolicy(CorsPolicy, policy =>
+{
+    options.AddPolicy(DevCorsPolicy, policy =>
         policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials()));
+              .AllowCredentials());
+
+    var productionOrigins = builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>() ?? [];
+
+    options.AddPolicy(ProdCorsPolicy, policy =>
+    {
+        if (productionOrigins.Length > 0)
+            policy.WithOrigins(productionOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        else
+            // Fallback: no credentials, deny all cross-origin — safe default.
+            policy.SetIsOriginAllowed(_ => false);
+    });
+});
 
 // ── OpenAPI / Swagger ────────────────────────────────────────────────────────
 builder.Services.AddOpenApi();
@@ -73,15 +111,32 @@ if (!app.Environment.IsEnvironment("Testing"))
     await SeedData.SeedAsync(db);
 }
 
+// ── Middleware pipeline ───────────────────────────────────────────────────────
+// Exception handler must be first so it wraps everything downstream.
+app.UseExceptionHandler();
+
+app.UseHttpLogging();
+
+// Only force HTTPS in production; in development the Kestrel HTTP endpoint is
+// convenient for tools like curl without needing to trust the dev cert.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+// Select the appropriate CORS policy based on the hosting environment.
+var corsPolicy = app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing")
+    ? DevCorsPolicy
+    : ProdCorsPolicy;
+app.UseCors(corsPolicy);
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();            // /openapi/v1.json
 }
-
-app.UseHttpsRedirection();
-app.UseCors(CorsPolicy);
-app.UseAuthentication();
-app.UseAuthorization();
 
 // ── Endpoints ────────────────────────────────────────────────────────────────
 app.MapGet("/", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))

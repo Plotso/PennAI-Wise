@@ -16,16 +16,20 @@ public class SqliteDashboardRepository(AppDbContext context) : IDashboardReposit
         var totalSpent       = await baseQuery.SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
         var transactionCount = await baseQuery.CountAsync(ct);
 
-        // Highest single expense as a DTO
-        var highestExpense = await baseQuery
-            .OrderByDescending(e => e.Amount)
+        // Highest single expense as a DTO — sort after ToList to avoid the
+        // EF_DECIMAL collation bug when ordering by a decimal column in SQLite.
+        var highestExpense = (await baseQuery
             .Select(e => new ExpenseDto(
                 e.Id, e.Amount, e.Description, e.Date,
                 e.CategoryId, e.Category.Name, e.Category.Color, e.CreatedAt))
-            .FirstOrDefaultAsync(ct);
+            .ToListAsync(ct))
+            .OrderByDescending(e => e.Amount)
+            .FirstOrDefault();
 
-        // Category breakdown — computed at DB level, sorted descending by spend
-        var categoryGroups = await baseQuery
+        // Category breakdown — fetch unsorted and sort client-side to avoid the
+        // EF_DECIMAL collation crash that SQLite triggers when ORDER BY is applied
+        // directly to a decimal aggregate column (EF Core 10 + Microsoft.Data.Sqlite).
+        var categoryGroups = (await baseQuery
             .GroupBy(e => new { e.Category.Name, e.Category.Color })
             .Select(g => new
             {
@@ -33,8 +37,9 @@ public class SqliteDashboardRepository(AppDbContext context) : IDashboardReposit
                 g.Key.Color,
                 Total = g.Sum(e => e.Amount)
             })
+            .ToListAsync(ct))
             .OrderByDescending(g => g.Total)
-            .ToListAsync(ct);
+            .ToList();
 
         var topCategory = categoryGroups.Count > 0 ? categoryGroups[0].Name : null;
 

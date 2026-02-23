@@ -55,7 +55,9 @@ public static class AuthEndpoints
         await users.AddAsync(user);
         await uow.SaveChangesAsync();
 
-        return Results.Ok(new AuthResponseDto(tokenService.GenerateToken(user), user.Email));
+        return Results.Created(
+            $"/api/auth/me",
+            new AuthResponseDto(tokenService.GenerateToken(user), user.Email));
     }
 
     private static async Task<IResult> LoginAsync(
