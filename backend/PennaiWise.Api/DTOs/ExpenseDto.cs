@@ -8,5 +8,7 @@ public record ExpenseDto(
     int CategoryId,
     string CategoryName,
     string? CategoryColor,
+    string CurrencyCode,
+    string CurrencySymbol,
     DateTime CreatedAt
 );

@@ -44,6 +44,8 @@ public class SqliteExpenseRepository(AppDbContext context) : IExpenseRepository
                 e.CategoryId,
                 e.Category.Name,
                 e.Category.Color,
+                e.CurrencyCode,
+                e.Currency.Symbol,
                 e.CreatedAt))
             .ToListAsync(ct);
 
@@ -68,6 +70,8 @@ public class SqliteExpenseRepository(AppDbContext context) : IExpenseRepository
                 e.CategoryId,
                 e.Category.Name,
                 e.Category.Color,
+                e.CurrencyCode,
+                e.Currency.Symbol,
                 e.CreatedAt))
             .FirstOrDefaultAsync(ct);
 

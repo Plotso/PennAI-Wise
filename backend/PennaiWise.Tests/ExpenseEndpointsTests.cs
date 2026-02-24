@@ -62,8 +62,8 @@ public class ExpenseEndpointsTests
     }
 
     private static CreateExpenseDto ValidDto(int categoryId, decimal amount = 12.50m,
-        string description = "Test expense", DateTime? date = null)
-        => new(amount, description, date ?? DateTime.UtcNow.Date.AddDays(-1), categoryId);
+        string description = "Test expense", DateTime? date = null, string currencyCode = "EUR")
+        => new(amount, description, date ?? DateTime.UtcNow.Date.AddDays(-1), categoryId, currencyCode);
 
     // ── GET /api/expenses ────────────────────────────────────────────────────
 
@@ -102,6 +102,8 @@ public class ExpenseEndpointsTests
         body!.Amount.Should().Be(25.00m);
         body.Description.Should().Be("Lunch");
         body.Id.Should().BeGreaterThan(0);
+        body.CurrencyCode.Should().Be("EUR");
+        body.CurrencySymbol.Should().Be("€");
     }
 
     [Test]
@@ -130,7 +132,7 @@ public class ExpenseEndpointsTests
 
         // Update
         var updateDto = new UpdateExpenseDto(
-            99.99m, "After update", DateTime.UtcNow.Date.AddDays(-2), _categoryIdA);
+            99.99m, "After update", DateTime.UtcNow.Date.AddDays(-2), _categoryIdA, "EUR");
         var update = await _authClient.PutAsJsonAsync(
             $"/api/expenses/{created!.Id}", updateDto);
 
@@ -154,7 +156,7 @@ public class ExpenseEndpointsTests
 
         // Try to update it as the main (seeded) test user → 404.
         var updateDto = new UpdateExpenseDto(
-            1.00m, "Hijacked", DateTime.UtcNow.Date.AddDays(-1), _categoryIdA);
+            1.00m, "Hijacked", DateTime.UtcNow.Date.AddDays(-1), _categoryIdA, "EUR");
         var response = await _authClient.PutAsJsonAsync(
             $"/api/expenses/{created!.Id}", updateDto);
 

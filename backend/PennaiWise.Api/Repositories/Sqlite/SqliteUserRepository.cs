@@ -19,4 +19,20 @@ public class SqliteUserRepository(AppDbContext context) : IUserRepository
 
     public async Task AddAsync(User user, CancellationToken ct = default) =>
         await context.Users.AddAsync(user, ct);
+
+    public Task<string?> GetDefaultCurrencyCodeAsync(int userId, CancellationToken ct = default) =>
+        context.Users
+            .AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => u.DefaultCurrencyCode)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task UpdateDefaultCurrencyAsync(int userId, string? currencyCode, CancellationToken ct = default)
+    {
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is not null)
+        {
+            user.DefaultCurrencyCode = currencyCode;
+        }
+    }
 }

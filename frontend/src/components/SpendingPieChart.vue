@@ -12,6 +12,7 @@ ChartJS.register(ArcElement, Tooltip, Legend)
 
 const props = defineProps({
   categoryBreakdown: { type: Array, default: () => [] },
+  currency:          { type: String, default: 'EUR' },
 })
 
 // Deterministic palette fallback
@@ -54,7 +55,7 @@ const chartOptions = {
       callbacks: {
         label(ctx) {
           const item = props.categoryBreakdown[ctx.dataIndex]
-          return ` ${item.categoryName}: $${item.total.toFixed(2)} (${item.percentage.toFixed(1)}%)`
+          return ` ${item.categoryName}: ${fmtCurrency(item.total)} (${item.percentage.toFixed(1)}%)`
         },
       },
     },
@@ -62,7 +63,7 @@ const chartOptions = {
 }
 
 function fmtCurrency(n) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: props.currency }).format(n)
 }
 </script>
 

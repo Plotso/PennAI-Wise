@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import api from '../services/api.js'
+import { useSettingsStore } from '../stores/settings.js'
 
 const props = defineProps({
   expense:    { type: Object, default: null },   // null = add mode
@@ -8,6 +9,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['saved', 'close'])
+
+const settings = useSettingsStore()
+onMounted(() => settings.load())
 
 // ── Helpers ─────────────────────────────────────────────────
 function todayStr() {
@@ -23,11 +27,14 @@ function toDateInput(isoStr) {
 const isEdit = computed(() => !!props.expense)
 
 const defaults = () => ({
-  amount:      '',
-  description: '',
-  date:        todayStr(),
-  categoryId:  '',
+  amount:       '',
+  description:  '',
+  date:         todayStr(),
+  categoryId:   '',
+  currencyCode: settings.displayCurrency,
 })
+
+const currencySymbol = computed(() => settings.currencyMap[form.value.currencyCode]?.symbol ?? '€')
 
 const form     = ref(defaults())
 const errors   = ref({})
@@ -38,10 +45,11 @@ const apiError = ref(null)
 watch(() => props.expense, (exp) => {
   if (exp) {
     form.value = {
-      amount:      exp.amount,
-      description: exp.description,
-      date:        toDateInput(exp.date),
-      categoryId:  exp.categoryId,
+      amount:       exp.amount,
+      description:  exp.description,
+      date:         toDateInput(exp.date),
+      categoryId:   exp.categoryId,
+      currencyCode: exp.currencyCode ?? 'EUR',
     }
   } else {
     form.value = defaults()
@@ -72,10 +80,11 @@ async function handleSubmit() {
   apiError.value = null
 
   const payload = {
-    amount:      Number(form.value.amount),
-    description: form.value.description.trim(),
-    date:        form.value.date + 'T00:00:00',
-    categoryId:  Number(form.value.categoryId),
+    amount:       Number(form.value.amount),
+    description:  form.value.description.trim(),
+    date:         form.value.date + 'T00:00:00',
+    categoryId:   Number(form.value.categoryId),
+    currencyCode: form.value.currencyCode,
   }
 
   try {
@@ -133,7 +142,7 @@ function onBackdrop(e) {
         <div class="field">
           <label for="ef-amount">Amount</label>
           <div class="input-prefix-wrap">
-            <span class="input-prefix">$</span>
+            <span class="input-prefix">{{ currencySymbol }}</span>
             <input
               id="ef-amount"
               v-model="form.amount"
@@ -171,6 +180,21 @@ function onBackdrop(e) {
             :class="{ 'input-err': errors.date }"
           />
           <p v-if="errors.date" class="field-error">{{ errors.date }}</p>
+        </div>
+
+        <!-- Currency -->
+        <div class="field">
+          <label for="ef-cur">Currency</label>
+          <select
+            id="ef-cur"
+            v-model="form.currencyCode"
+          >
+            <option
+              v-for="c in settings.currencies"
+              :key="c.code"
+              :value="c.code"
+            >{{ c.symbol }} {{ c.code }} — {{ c.name }}</option>
+          </select>
         </div>
 
         <!-- Category -->

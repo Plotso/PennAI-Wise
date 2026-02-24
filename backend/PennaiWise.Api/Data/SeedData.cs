@@ -5,6 +5,13 @@ namespace PennaiWise.Api.Data;
 
 public static class SeedData
 {
+    private static readonly Currency[] DefaultCurrencies =
+    [
+        new() { Code = "EUR", Name = "Euro",           Symbol = "€" },
+        new() { Code = "USD", Name = "US Dollar",      Symbol = "$" },
+        new() { Code = "GBP", Name = "British Pound",  Symbol = "£" },
+    ];
+
     private static readonly Category[] DefaultCategories =
     [
         new() { Name = "Food & Dining",    Color = "#FF6384" },
@@ -17,6 +24,29 @@ public static class SeedData
     ];
 
     public static async Task SeedAsync(AppDbContext db)
+    {
+        await SeedCurrenciesAsync(db);
+        await SeedCategoriesAsync(db);
+    }
+
+    private static async Task SeedCurrenciesAsync(AppDbContext db)
+    {
+        var existingCodes = await db.Currencies
+            .Select(c => c.Code)
+            .ToHashSetAsync();
+
+        var toAdd = DefaultCurrencies
+            .Where(c => !existingCodes.Contains(c.Code))
+            .ToList();
+
+        if (toAdd.Count == 0)
+            return;
+
+        db.Currencies.AddRange(toAdd);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedCategoriesAsync(AppDbContext db)
     {
         var existingNames = await db.Categories
             .Where(c => c.UserId == null)

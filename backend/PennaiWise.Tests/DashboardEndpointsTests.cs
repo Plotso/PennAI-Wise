@@ -88,6 +88,8 @@ public class DashboardEndpointsTests
         body.Should().NotBeNull();
         body!.TotalSpent.Should().Be(_expectedTotal);
         body.TransactionCount.Should().Be(_expectedCount);
+        body.DisplayCurrency.Should().Be("EUR");
+        body.DisplayCurrencySymbol.Should().Be("€");
     }
 
     [Test]

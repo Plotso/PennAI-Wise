@@ -18,11 +18,16 @@ public class Expense
     [Required]
     public DateTime Date { get; set; }
 
+    [Required]
+    [MaxLength(3)]
+    public string CurrencyCode { get; set; } = "EUR";
+
     public int CategoryId { get; set; }
     public int UserId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Category Category { get; set; } = null!;
+    public Currency Currency { get; set; } = null!;
     public User User { get; set; } = null!;
 }

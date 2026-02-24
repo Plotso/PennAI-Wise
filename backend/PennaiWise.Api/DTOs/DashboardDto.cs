@@ -5,6 +5,8 @@ public record DashboardDto(
     int TransactionCount,
     ExpenseDto? HighestExpense,
     string? TopCategory,
+    string DisplayCurrency,
+    string DisplayCurrencySymbol,
     List<CategorySpendingDto> CategoryBreakdown,
     List<DailySpendingDto> DailySpending
 );

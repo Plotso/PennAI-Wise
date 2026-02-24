@@ -42,6 +42,69 @@ namespace PennaiWise.Api.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("PennaiWise.Api.Models.Currency", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Code");
+
+                    b.ToTable("Currencies");
+                });
+
+            modelBuilder.Entity("PennaiWise.Api.Models.ExchangeRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<DateTime>("EffectiveDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FromCurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Rate")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<string>("ToCurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromCurrencyCode");
+
+                    b.HasIndex("ToCurrencyCode");
+
+                    b.HasIndex("UserId", "FromCurrencyCode", "ToCurrencyCode", "EffectiveDate")
+                        .IsUnique();
+
+                    b.ToTable("ExchangeRates");
+                });
+
             modelBuilder.Entity("PennaiWise.Api.Models.Expense", b =>
                 {
                     b.Property<int>("Id")
@@ -59,6 +122,13 @@ namespace PennaiWise.Api.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("EUR");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("TEXT");
 
@@ -73,6 +143,8 @@ namespace PennaiWise.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("CurrencyCode");
 
                     b.HasIndex("UserId");
 
@@ -90,6 +162,10 @@ namespace PennaiWise.Api.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+                    b.Property<string>("DefaultCurrencyCode")
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -100,6 +176,8 @@ namespace PennaiWise.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DefaultCurrencyCode");
 
                     b.HasIndex("Email")
                         .IsUnique();
@@ -117,11 +195,44 @@ namespace PennaiWise.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("PennaiWise.Api.Models.ExchangeRate", b =>
+                {
+                    b.HasOne("PennaiWise.Api.Models.Currency", "FromCurrency")
+                        .WithMany()
+                        .HasForeignKey("FromCurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PennaiWise.Api.Models.Currency", "ToCurrency")
+                        .WithMany()
+                        .HasForeignKey("ToCurrencyCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PennaiWise.Api.Models.User", "User")
+                        .WithMany("ExchangeRates")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FromCurrency");
+
+                    b.Navigation("ToCurrency");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("PennaiWise.Api.Models.Expense", b =>
                 {
                     b.HasOne("PennaiWise.Api.Models.Category", "Category")
                         .WithMany("Expenses")
                         .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("PennaiWise.Api.Models.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyCode")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -133,7 +244,19 @@ namespace PennaiWise.Api.Migrations
 
                     b.Navigation("Category");
 
+                    b.Navigation("Currency");
+
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PennaiWise.Api.Models.User", b =>
+                {
+                    b.HasOne("PennaiWise.Api.Models.Currency", "DefaultCurrency")
+                        .WithMany()
+                        .HasForeignKey("DefaultCurrencyCode")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("DefaultCurrency");
                 });
 
             modelBuilder.Entity("PennaiWise.Api.Models.Category", b =>
@@ -144,6 +267,8 @@ namespace PennaiWise.Api.Migrations
             modelBuilder.Entity("PennaiWise.Api.Models.User", b =>
                 {
                     b.Navigation("Categories");
+
+                    b.Navigation("ExchangeRates");
 
                     b.Navigation("Expenses");
                 });

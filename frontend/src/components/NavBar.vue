@@ -23,6 +23,7 @@ function logout() {
     <nav class="navbar-links">
       <RouterLink to="/expenses" class="nav-link">Expenses</RouterLink>
       <RouterLink to="/dashboard" class="nav-link">Dashboard</RouterLink>
+      <RouterLink to="/settings" class="nav-link">Settings</RouterLink>
     </nav>
 
     <!-- Right: user + logout -->

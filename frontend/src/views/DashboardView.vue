@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api.js'
+import { useSettingsStore } from '../stores/settings.js'
 import SpendingPieChart from '../components/SpendingPieChart.vue'
 import MonthlyBarChart  from '../components/MonthlyBarChart.vue'
+
+const settings = useSettingsStore()
 
 // ── Month state ──────────────────────────────────────────────
 const now      = new Date()
@@ -31,14 +34,15 @@ function nextMonth() {
 const data    = ref(null)
 const loading = ref(false)
 const error   = ref(null)
+const dashCurrency = ref('')
 
 async function loadDashboard() {
   loading.value = true
   error.value   = null
   try {
-    const { data: d } = await api.get('/dashboard', {
-      params: { month: month.value, year: year.value },
-    })
+    const params = { month: month.value, year: year.value }
+    if (dashCurrency.value) params.currency = dashCurrency.value
+    const { data: d } = await api.get('/dashboard', { params })
     data.value = d
   } catch {
     error.value = 'Failed to load dashboard data.'
@@ -47,11 +51,20 @@ async function loadDashboard() {
   }
 }
 
-onMounted(loadDashboard)
+onMounted(async () => {
+  await settings.load()
+  dashCurrency.value = settings.displayCurrency
+  loadDashboard()
+})
+
+function onCurrencyChange() {
+  loadDashboard()
+}
 
 // ── Formatting helpers ───────────────────────────────────────
 function fmtCurrency(n) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n ?? 0)
+  const code = data.value?.displayCurrency ?? 'EUR'
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(n ?? 0)
 }
 function fmtDate(iso) {
   if (!iso) return '—'
@@ -70,7 +83,12 @@ function fmtDate(iso) {
           <p class="dash-sub">Your spending overview at a glance.</p>
         </div>
 
-        <div class="month-nav">
+        <div class="dash-controls">
+          <select v-model="dashCurrency" class="currency-select" @change="onCurrencyChange">
+            <option v-for="c in settings.currencies" :key="c.code" :value="c.code">{{ c.symbol }} {{ c.code }}</option>
+          </select>
+
+          <div class="month-nav">
           <button class="month-arrow" @click="prevMonth" aria-label="Previous month">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
               <path fill-rule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/>
@@ -82,6 +100,7 @@ function fmtDate(iso) {
               <path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/>
             </svg>
           </button>
+          </div>
         </div>
       </div>
 
@@ -155,7 +174,7 @@ function fmtDate(iso) {
           <!-- Doughnut — category breakdown -->
           <div class="chart-card">
             <h2 class="chart-title">Spending by Category</h2>
-            <SpendingPieChart :category-breakdown="data.categoryBreakdown" />
+            <SpendingPieChart :category-breakdown="data.categoryBreakdown" :currency="data.displayCurrency" />
           </div>
 
           <!-- Bar — daily spending -->
@@ -165,6 +184,7 @@ function fmtDate(iso) {
               :daily-spending="data.dailySpending"
               :month="month"
               :year="year"
+              :currency-symbol="data.displayCurrencySymbol"
             />
           </div>
         </div>
@@ -210,6 +230,30 @@ function fmtDate(iso) {
 }
 
 /* ── Month selector ──────────────────────────────────── */
+.dash-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.currency-select {
+  padding: 0.4rem 0.65rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #1e1b4b;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.currency-select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
 .month-nav {
   display: flex;
   align-items: center;

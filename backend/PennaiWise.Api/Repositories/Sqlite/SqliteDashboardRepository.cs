@@ -5,61 +5,84 @@ using PennaiWise.Api.Interfaces;
 
 namespace PennaiWise.Api.Repositories.Sqlite;
 
-public class SqliteDashboardRepository(AppDbContext context) : IDashboardRepository
+public class SqliteDashboardRepository(AppDbContext context, IExchangeRateService exchangeRateService) : IDashboardRepository
 {
-    public async Task<DashboardDto> GetDashboardAsync(int userId, int month, int year, CancellationToken ct = default)
+    public async Task<DashboardDto> GetDashboardAsync(
+        int userId, int month, int year, string displayCurrency, string displayCurrencySymbol,
+        CancellationToken ct = default)
     {
-        var baseQuery = context.Expenses
+        // Fetch all expenses for the month including currency info.
+        var expenses = await context.Expenses
             .AsNoTracking()
-            .Where(e => e.UserId == userId && e.Date.Month == month && e.Date.Year == year);
-
-        var totalSpent       = await baseQuery.SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
-        var transactionCount = await baseQuery.CountAsync(ct);
-
-        // Highest single expense as a DTO — sort after ToList to avoid the
-        // EF_DECIMAL collation bug when ordering by a decimal column in SQLite.
-        var highestExpense = (await baseQuery
-            .Select(e => new ExpenseDto(
-                e.Id, e.Amount, e.Description, e.Date,
-                e.CategoryId, e.Category.Name, e.Category.Color, e.CreatedAt))
-            .ToListAsync(ct))
-            .OrderByDescending(e => e.Amount)
-            .FirstOrDefault();
-
-        // Category breakdown — fetch unsorted and sort client-side to avoid the
-        // EF_DECIMAL collation crash that SQLite triggers when ORDER BY is applied
-        // directly to a decimal aggregate column (EF Core 10 + Microsoft.Data.Sqlite).
-        var categoryGroups = (await baseQuery
-            .GroupBy(e => new { e.Category.Name, e.Category.Color })
-            .Select(g => new
+            .Where(e => e.UserId == userId && e.Date.Month == month && e.Date.Year == year)
+            .Select(e => new
             {
-                g.Key.Name,
-                g.Key.Color,
-                Total = g.Sum(e => e.Amount)
+                e.Id,
+                e.Amount,
+                e.Description,
+                e.Date,
+                e.CategoryId,
+                CategoryName = e.Category.Name,
+                CategoryColor = e.Category.Color,
+                e.CurrencyCode,
+                CurrencySymbol = e.Currency.Symbol,
+                e.CreatedAt
             })
-            .ToListAsync(ct))
+            .ToListAsync(ct);
+
+        if (expenses.Count == 0)
+        {
+            return new DashboardDto(0m, 0, null, null, displayCurrency, displayCurrencySymbol, [], []);
+        }
+
+        // Convert each expense amount to the display currency.
+        var converted = new List<(
+            int Id, decimal OriginalAmount, decimal ConvertedAmount,
+            string Description, DateTime Date, int CategoryId,
+            string CategoryName, string? CategoryColor,
+            string CurrencyCode, string CurrencySymbol, DateTime CreatedAt)>();
+
+        foreach (var e in expenses)
+        {
+            var convertedAmount = await exchangeRateService.ConvertAsync(
+                userId, e.Amount, e.CurrencyCode, displayCurrency, e.Date, ct);
+
+            converted.Add((e.Id, e.Amount, convertedAmount, e.Description, e.Date,
+                e.CategoryId, e.CategoryName, e.CategoryColor,
+                e.CurrencyCode, e.CurrencySymbol, e.CreatedAt));
+        }
+
+        var totalSpent       = converted.Sum(e => e.ConvertedAmount);
+        var transactionCount = converted.Count;
+
+        // Highest expense (by converted amount)
+        var highest = converted.OrderByDescending(e => e.ConvertedAmount).First();
+        var highestExpense = new ExpenseDto(
+            highest.Id, highest.ConvertedAmount, highest.Description, highest.Date,
+            highest.CategoryId, highest.CategoryName, highest.CategoryColor,
+            displayCurrency, displayCurrencySymbol, highest.CreatedAt);
+
+        // Category breakdown
+        var categoryGroups = converted
+            .GroupBy(e => new { e.CategoryName, e.CategoryColor })
+            .Select(g => new { g.Key.CategoryName, g.Key.CategoryColor, Total = g.Sum(e => e.ConvertedAmount) })
             .OrderByDescending(g => g.Total)
             .ToList();
 
-        var topCategory = categoryGroups.Count > 0 ? categoryGroups[0].Name : null;
+        var topCategory = categoryGroups[0].CategoryName;
 
         var categoryBreakdown = categoryGroups
             .Select(g => new CategorySpendingDto(
-                g.Name,
-                g.Color,
+                g.CategoryName,
+                g.CategoryColor,
                 g.Total,
                 totalSpent == 0 ? 0d : Math.Round((double)(g.Total / totalSpent) * 100, 2)))
             .ToList();
 
-        // Daily spending totals — group on the client side so that Date.Date
-        // projection works with every EF Core provider (InMemory, SQLite, etc.).
-        var rawForDaily = await baseQuery
-            .Select(e => new { e.Date, e.Amount })
-            .ToListAsync(ct);
-
-        var dailySpending = rawForDaily
+        // Daily spending totals (converted)
+        var dailySpending = converted
             .GroupBy(e => e.Date.Date)
-            .Select(g => new DailySpendingDto(g.Key, g.Sum(e => e.Amount)))
+            .Select(g => new DailySpendingDto(g.Key, g.Sum(e => e.ConvertedAmount)))
             .OrderBy(d => d.Date)
             .ToList();
 
@@ -68,6 +91,8 @@ public class SqliteDashboardRepository(AppDbContext context) : IDashboardReposit
             transactionCount,
             highestExpense,
             topCategory,
+            displayCurrency,
+            displayCurrencySymbol,
             categoryBreakdown,
             dailySpending);
     }

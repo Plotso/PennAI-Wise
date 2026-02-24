@@ -94,9 +94,12 @@ builder.Services.AddScoped<IUserRepository, SqliteUserRepository>();
 builder.Services.AddScoped<ICategoryRepository, SqliteCategoryRepository>();
 builder.Services.AddScoped<IExpenseRepository, SqliteExpenseRepository>();
 builder.Services.AddScoped<IDashboardRepository, SqliteDashboardRepository>();
+builder.Services.AddScoped<ICurrencyRepository, SqliteCurrencyRepository>();
+builder.Services.AddScoped<IExchangeRateRepository, SqliteExchangeRateRepository>();
 
-// ── Services ──────────────────────────────────────────────────────────────────
+// ── Services ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<IExchangeRateService, UserExchangeRateService>();
 
 // ────────────────────────────────────────────────────────────────────────────
 var app = builder.Build();
@@ -147,6 +150,9 @@ app.MapAuthEndpoints();
 app.MapCategoryEndpoints();
 app.MapExpenseEndpoints();
 app.MapDashboardEndpoints();
+app.MapCurrencyEndpoints();
+app.MapExchangeRateEndpoints();
+app.MapSettingsEndpoints();
 
 app.Run();
 

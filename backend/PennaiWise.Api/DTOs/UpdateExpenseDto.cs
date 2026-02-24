@@ -4,5 +4,6 @@ public record UpdateExpenseDto(
     decimal Amount,
     string Description,
     DateTime Date,
-    int CategoryId
+    int CategoryId,
+    string CurrencyCode = "EUR"
 );

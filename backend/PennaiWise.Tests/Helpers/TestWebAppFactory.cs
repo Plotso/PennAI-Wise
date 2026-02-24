@@ -65,9 +65,22 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
 
     private static void SeedTestData(AppDbContext db)
     {
+        SeedCurrencies(db);
         SeedDefaultCategories(db);
         SeedTestUser(db);
         db.SaveChanges();
+    }
+
+    private static void SeedCurrencies(AppDbContext db)
+    {
+        if (db.Currencies.Any())
+            return;
+
+        db.Currencies.AddRange(
+            new Currency { Code = "EUR", Name = "Euro",          Symbol = "€" },
+            new Currency { Code = "USD", Name = "US Dollar",     Symbol = "$" },
+            new Currency { Code = "GBP", Name = "British Pound", Symbol = "£" }
+        );
     }
 
     private static void SeedDefaultCategories(AppDbContext db)

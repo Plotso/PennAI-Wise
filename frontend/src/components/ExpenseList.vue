@@ -44,8 +44,8 @@ function fmtDate(iso) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d)
 }
 
-function fmtAmount(n) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+function fmtAmount(n, currencyCode = 'EUR') {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode }).format(n)
 }
 
 // Generate a deterministic fallback color from a string
@@ -100,7 +100,7 @@ function fallbackColor(name = '') {
               />
               {{ exp.categoryName }}
             </td>
-            <td class="td-amt">{{ fmtAmount(exp.amount) }}</td>
+            <td class="td-amt">{{ fmtAmount(exp.amount, exp.currencyCode) }}</td>
             <td class="td-actions">
               <!-- Normal action buttons -->
               <template v-if="confirmId !== exp.id">

@@ -13,9 +13,10 @@ import {
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend)
 
 const props = defineProps({
-  dailySpending: { type: Array,  default: () => [] },
-  month:         { type: Number, required: true },
-  year:          { type: Number, required: true },
+  dailySpending:  { type: Array,  default: () => [] },
+  month:          { type: Number, required: true },
+  year:           { type: Number, required: true },
+  currencySymbol: { type: String, default: '€' },
 })
 
 // Build a days-in-month array (1 … N) and map API data onto it
@@ -58,7 +59,7 @@ const chartOptions = computed(() => ({
           return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
         },
         label(ctx) {
-          return ` $${Number(ctx.parsed.y).toFixed(2)}`
+          return ` ${props.currencySymbol}${Number(ctx.parsed.y).toFixed(2)}`
         },
       },
     },
@@ -79,7 +80,7 @@ const chartOptions = computed(() => ({
       ticks: {
         font: { size: 11 },
         color: '#9ca3af',
-        callback(v) { return '$' + v },
+        callback(v) { return props.currencySymbol + v },
       },
       beginAtZero: true,
     },

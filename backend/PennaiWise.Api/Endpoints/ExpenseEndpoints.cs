@@ -75,6 +75,7 @@ public static class ExpenseEndpoints
         CreateExpenseDto dto,
         HttpContext http,
         IExpenseRepository expenses,
+        ICurrencyRepository currencies,
         IUnitOfWork uow,
         CancellationToken ct)
     {
@@ -84,6 +85,12 @@ public static class ExpenseEndpoints
         if (ValidationError(dto.Amount, dto.Description, dto.Date) is { } err)
             return err;
 
+        if (!await currencies.ExistsAsync(dto.CurrencyCode, ct))
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                { "currencyCode", [$"Currency '{dto.CurrencyCode}' not found."] }
+            });
+
         if (!await expenses.CategoryExistsForUserAsync(dto.CategoryId, userId, ct))
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
@@ -92,11 +99,12 @@ public static class ExpenseEndpoints
 
         var expense = new Expense
         {
-            Amount      = dto.Amount,
-            Description = dto.Description.Trim(),
-            Date        = dto.Date,
-            CategoryId  = dto.CategoryId,
-            UserId      = userId
+            Amount       = dto.Amount,
+            Description  = dto.Description.Trim(),
+            Date         = dto.Date,
+            CategoryId   = dto.CategoryId,
+            CurrencyCode = dto.CurrencyCode.ToUpperInvariant(),
+            UserId       = userId
         };
 
         await expenses.AddAsync(expense, ct);
@@ -113,6 +121,7 @@ public static class ExpenseEndpoints
         UpdateExpenseDto dto,
         HttpContext http,
         IExpenseRepository expenses,
+        ICurrencyRepository currencies,
         IUnitOfWork uow,
         CancellationToken ct)
     {
@@ -126,16 +135,23 @@ public static class ExpenseEndpoints
         if (ValidationError(dto.Amount, dto.Description, dto.Date) is { } err)
             return err;
 
+        if (!await currencies.ExistsAsync(dto.CurrencyCode, ct))
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                { "currencyCode", [$"Currency '{dto.CurrencyCode}' not found."] }
+            });
+
         if (!await expenses.CategoryExistsForUserAsync(dto.CategoryId, userId, ct))
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
                 { "categoryId", ["Category not found or not accessible."] }
             });
 
-        expense.Amount      = dto.Amount;
-        expense.Description = dto.Description.Trim();
-        expense.Date        = dto.Date;
-        expense.CategoryId  = dto.CategoryId;
+        expense.Amount       = dto.Amount;
+        expense.Description  = dto.Description.Trim();
+        expense.Date         = dto.Date;
+        expense.CategoryId   = dto.CategoryId;
+        expense.CurrencyCode = dto.CurrencyCode.ToUpperInvariant();
 
         await uow.SaveChangesAsync(ct);
 
